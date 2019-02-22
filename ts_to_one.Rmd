@@ -1,0 +1,76 @@
+---
+title: "Advertiser Example"
+author: "Freddy Drennan"
+date: "2/21/2019"
+output: html_document
+---
+
+```{r}
+library(tidyverse)
+library(forcats)
+library(lubridate)
+library(recipes)
+```
+
+
+```{r}
+data = read_csv("data.csv")
+```
+
+```{r}
+glimpse(data)
+```
+
+
+```{r}
+summary(data)
+```
+
+
+```{r}
+data %>% 
+  head
+```
+
+```{r}
+data <-
+  data %>% 
+  # First, we can lump rare urls into an 'other' category. 
+  mutate(
+    # If a url appears less than 5% of the time, we'll label it other. 
+    urls  = as_factor(fct_lump(urls, p =.10)),
+    # Get Months
+    month = as_factor(as.character(month(dates))),
+    # Get days of the week
+    day   = as_factor(weekdays(dates))
+  ) %>% 
+  group_by(names) %>% 
+  mutate(n_sites_visited = max(row_number())) %>% 
+  ungroup
+```
+
+```{r}
+data_recipe <- 
+  data %>% 
+  # Create dummy variables.
+  recipe(conversion ~ ., data = .) %>% 
+  step_dummy(all_nominal(), -names) 
+
+
+train_rec <- prep(data_recipe, training = data)
+
+data <- bake(train_rec, data)
+```
+
+
+```{r}
+data %>% 
+  group_by(names) %>% 
+  summarise_if(is.numeric, function(x) {
+    if(max(x) > 1) {
+      unique(x)
+    } else {
+      as.numeric(sum(x) > 0)
+    }
+  }) 
+```
